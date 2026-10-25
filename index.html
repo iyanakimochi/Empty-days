@@ -156,6 +156,7 @@ h3.grp{font-size:.78rem;letter-spacing:.16em;color:var(--mute);margin:22px 0 8px
 .zoom-ctl button{min-width:40px;min-height:36px;border:1px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:3px;font-weight:700;cursor:pointer;font-size:.9rem;padding:0 6px}
 .zoom-ctl button:disabled{opacity:.4;cursor:default}
 .insp{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:12px 14px;display:grid;gap:10px;align-content:start;min-width:0}
+.insp:empty{display:none}
 .i-head{display:flex;gap:10px;align-items:center}
 .i-head .tt{flex:1;min-width:0;display:grid;line-height:1.3}
 .i-row{display:flex;justify-content:space-between;gap:10px;font-size:.88rem;font-variant-numeric:tabular-nums}
@@ -545,8 +546,10 @@ const UP={
  pspd:{n:'パイプの流速',d:'試料の進む速さ ×1.15',max:10,c:l=>150*Math.pow(2.8,l)},
  store:{n:'保管庫の拡張',d:'保管庫の品目ごとの上限 ×1.7。大きなテーマの必要数にも対応できます',max:14,c:l=>60*Math.pow(2.4,l)},
  slots:{n:'論文執筆の枠',d:'同時に抱える題材 +1',max:3,c:l=>500*Math.pow(4,l)},
- det:{n:'異常検出の感度',d:'パイプを流れる試料に、異常な一粒が混ざる確率を上げます',max:8,c:l=>200*Math.pow(2.2,l)},
- res:{n:'共鳴の観測',d:'ときどき生産施設が共鳴し、異常試料を格段に出しやすくなります。タップすると、つながる先にも広がります。第6章の完了でも解放されます',max:1,c:l=>1200},
+ det:{n:'異常検出の感度',d:'パイプを流れる試料に、異常な一粒が混ざる確率を上げます',max:12,c:l=>200*Math.pow(2.2,l)},
+ apr:{n:'異常試料の鑑定',d:'異常試料の報酬が、研究室のようすで増えます。これまでに鑑定した品の種類、稼働中の施設の割合、流れてきたパイプの長さ。強化するほど、これらが強く効きます',max:12,c:l=>250*Math.pow(2.1,l)},
+ amp:{n:'共鳴の増幅',d:'共鳴した施設から出た異常試料の報酬を増やします',max:10,c:l=>600*Math.pow(2.2,l)},
+ res:{n:'共鳴の観測',d:'ときどき生産施設や保管庫が共鳴し、異常試料を格段に出しやすくなります。タップすると、つながる先にも広がります。第6章の完了でも解放されます',max:1,c:l=>1200},
  land:{n:'研究室の拡張',d:'盤面が横に80、縦に80広がります',max:10,c:l=>120*Math.pow(2.1,l)}
 };
 const AUTO={deliver:{n:'自動選定',d:'最も早く終わりそうなテーマを、自動で選びます。',cost:600}};
@@ -575,9 +578,9 @@ function newB(t,x,y,lvl){ const b={id:S.nid++,t,x,y,lvl:lvl||1,out:0,inb:{},stoc
 function freshState(pp){
   pp=pp||{};
   return {v:3,saved:Date.now(),coins:pp.seed?Math.floor(300*Math.pow(2,pp.seed)):0,runEarned:0,lifeEarned:0,nid:1,lid:1,b:[],links:[],
-    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,res:0},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
+    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,apr:0,amp:0,res:0},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
     pp:{prod:0,pipe:0,reward:0,deep:0,seed:0,keep:0},far:[0,0,0,0,0,0,0],star:0,ended:0,intro:0,
-    stats:{delivered:0,tides:0,time:0,sold:0,caught:0},seen:{},resT:null,seenRes:0,timers:{a:0},tk:0};
+    stats:{delivered:0,tides:0,time:0,sold:0,caught:0},seen:{},resT:null,seenRes:0,anSeen:{},timers:{a:0},tk:0};
 }
 function litCount(){ return S.far.reduce((a,b)=>a+(b?1:0),0); }
 function mult(){ return (1+0.03*S.pearlsTotal)*Math.pow(1.15,S.pp.prod)*Math.pow(1.25,litCount()); }
@@ -628,23 +631,40 @@ function placeCost(t){
 }
 function gain(c){ S.coins+=c; S.runEarned+=c; S.lifeEarned+=c; }
 const ANOM_CH=3, ANOM_SEC=300;
+/* 鑑定: 異常試料の報酬は、研究室のようすで変わる。設備を強化するほど、そのようすが強く効く
+   ・図鑑　これまでに鑑定した品の種類（広く集めるほど）
+   ・稼働　いま動いている生産・加工施設の割合（回っているほど）
+   ・経路　その試料が流れていたパイプの長さ（遠くから運ばれたほど） */
+function aprParts(len){
+  const kinds=Object.keys(S.anSeen||{}).length, nk=IDS.length;
+  let tot=0, run=0; for(const b of S.b){ const k=kindOf(b.t); if(k==='prod'||k==='proc'){ tot++; if(b.st==='run') run++; } }
+  return {kinds, nk, a:kinds/nk, run:tot? run/tot : 0, tot, r:Math.min(1,(len||0)/(UNIT*6))};
+}
+function ampF(){ return 1+0.4*(S.up.amp||0); }
+function aprF(len){ const l=S.up.apr||0; if(l<=0) return 1; const p=aprParts(len); return 1+0.3*l*(p.a+p.run+p.r); }
+/* 品の鑑定価値: 原料は売値、加工品は材料の価値の合計×1.5（深い品ほど異常試料は高価） */
+const WORTH={};
+function worth(i){ if(WORTH[i]!=null) return WORTH[i]; const r=REC[i]; let v; if(!r) v=ITEMS[i].v; else { v=0; for(const q in r) v+=r[q]*worth(q); v*=1.5; } return WORTH[i]=v; }
 function anomF(){ return 1+0.8*S.up.det; }
 function resOn(){ return S.chapter>=6 || S.up.res>0; }
 /* 流れる異常試料を捕まえる */
 function capture(pk){
   if(!pk||!pk.an) return 0;
   pk.an=0;
-  const c=Math.max(10,Math.round(ITEMS[pk.i].v*pk.q*5*Math.pow(1.15,S.pp.reward)));
+  let len=0; for(const L of S.links) if(L.q.indexOf(pk)>=0){ len=L.len; break; }
+  S.anSeen=S.anSeen||{}; S.anSeen[pk.i]=1;
+  const cm=aprF(len)*(pk.rs? ampF() : 1);
+  const c=Math.max(10,Math.round(worth(pk.i)*pk.q*5*cm*Math.pow(1.15,S.pp.reward)));
   gain(c); S.stats.caught=(S.stats.caught||0)+1;
   if(Math.random()<0.35){ collect(pickStory(pk.i)); }
-  emit('caught',{i:pk.i,c});
+  emit('caught',{i:pk.i,c,m:cm});
   return c;
 }
 /* 共鳴した施設をタップ: 共鳴をのばし、つながる先の施設にも広げる */
 function tapResonance(id){
   const b=byId(id); if(!b||!(b.res>0)||b.resTap) return false;
   b.resTap=1; b.res=Math.max(b.res,25);
-  S.links.filter(l=>l.a===b.id).forEach(l=>{ const d=byId(l.b); if(!d) return; const k=kindOf(d.t); if((k==='prod'||k==='proc')&&!(d.res>0)){ d.res=20; d.resTap=0; d.resN=0; } });
+  S.links.filter(l=>l.a===b.id).forEach(l=>{ const d=byId(l.b); if(!d) return; const k=kindOf(d.t); if((k==='prod'||k==='proc'||k==='wh')&&!(d.res>0)){ d.res=20; d.resTap=0; d.resN=0; } });
   emit('resTap',{id});
   return true;
 }
@@ -876,7 +896,7 @@ function tide(){
   const f=freshState(keep.pp);
   f.chapter=keep.chapter; f.stories=keep.stories; f.pearls=keep.pearls+g; f.pearlsTotal=keep.pearlsTotal+g; f.pp=keep.pp;
   f.far=keep.far; f.star=keep.star; f.ended=keep.ended; f.auto=keep.auto; f.lifeEarned=keep.lifeEarned;
-  f.got=keep.got; f.built=keep.built; f.intro=keep.intro; f.stats=keep.stats; f.stats.tides++; f.oid=keep.oid;
+  f.got=keep.got; f.anSeen=keep.anSeen||{}; f.built=keep.built; f.intro=keep.intro; f.stats=keep.stats; f.stats.tides++; f.oid=keep.oid;
   if(keep.pp.keep>0){
     f.nid=keep.nid; f.lid=keep.lid; f.up.land=keep.up.land;
     f.b=keep.b.map(b=>{ const n={id:b.id,t:b.t,x:b.x,y:b.y,lvl:1,out:0,inb:{},stock:{},st:'run',pr:0}; const r=REC[b.t]; if(r) for(const k in r) n.inb[k]=0; return n; });
@@ -972,7 +992,7 @@ function step(dt){
         const isAn= src.res>0 && (src.resN||0)<5 && Math.random()<0.3;
         if(isAn) src.resN=(src.resN||0)+1;
         const last=L.q[L.q.length-1];
-        if(!isAn&&last&&last.i===pick&&last.t>T-0.4&&!last.an) last.q+=1; else L.q.push(isAn? {i:pick,q:1,t:T,an:1} : {i:pick,q:1,t:T});
+        if(!isAn&&last&&last.i===pick&&last.t>T-0.4&&!last.an) last.q+=1; else L.q.push(isAn? {i:pick,q:1,t:T,an:1,rs:1} : {i:pick,q:1,t:T});
       }
       L.rr=rr; L.cr=Math.min(rc-sent,1);
     }
@@ -990,7 +1010,7 @@ function step(dt){
   if(resOn()){
     S.resT=(S.resT==null?45:S.resT)-dt;
     if(S.resT<=0){
-      const c=S.b.filter(b=>{ const k=kindOf(b.t); return (k==='prod'||k==='proc')&&!(b.res>0); });
+      const c=S.b.filter(b=>{ const k=kindOf(b.t); return (k==='prod'||k==='proc'||k==='wh')&&!(b.res>0); });
       if(c.length){ const b=c[Math.floor(Math.random()*c.length)]; b.res=25; b.resTap=0; b.resN=0; if(S.seenRes<3){ S.seenRes++; emit('res',{id:b.id,t:b.t}); } }
       S.resT=120+Math.random()*120;
     }
@@ -1030,7 +1050,7 @@ function load(json){
 function reset(){ S=freshState(); }
 reset();
 Object.assign(api,{IDS,ITEMS,REC,NODE,SP,TYPES,CH,INTRO,ENDING,POOL,LORE,FLORE,FAR,STAR,UP,AUTO,PEARL,
-  state:()=>S,kindOf,nameOf,glyphOf,tierOf,worldW:W,worldH:H,UNIT,HALF,byId,buildingAt,fits,moveB,reqNow:reqFresh,litCount,mult,pipeCap,cycleOf,anomF,resOn,capture,tapResonance,linkCap,linkUpCost,upgradeLink,upgradeAllLinks,linksUpInfo,pipeSpeed,depotCap,whCap,dockCount,bufCap,msMult,rate,needFlow,nodeCost,
+  state:()=>S,kindOf,nameOf,glyphOf,tierOf,worldW:W,worldH:H,UNIT,HALF,byId,buildingAt,fits,moveB,reqNow:reqFresh,litCount,mult,pipeCap,cycleOf,anomF,resOn,capture,tapResonance,aprF,aprParts,ampF,linkCap,linkUpCost,upgradeLink,upgradeAllLinks,linksUpInfo,pipeSpeed,depotCap,whCap,dockCount,bufCap,msMult,rate,needFlow,nodeCost,
   unlocked,countOf,placeCost,place,demolish,link,linkErr,removeLink,buyNode,accept,have,canDeliver,status,hint,
   deliverSide,skipOrder,deliverChapter,deliverFar,deliverStar,toggleAct,CATS,upCost,buyUp,buyAuto,
   pearlGain,canTide,pearlCost,buyPearl,tide,advance,step,serialize,load,reset,storyOf});
@@ -1446,14 +1466,6 @@ function buildInsp(){
     }
     box.append(h('button',{class:'btn danger sm',type:'button',text:'パイプを外す',onclick:()=>{ C.removeLink(L.id); ui.selL=0; render(); draw(); }}));
   } else {
-    box.append(h('b',{text:'使い方'}));
-    [['建てる','「建築」を選び、分類から施設を選んで、盤面の好きな場所をタップします。'],
-     ['実験台','「研究」タブで選んだテーマの品だけを、必要な数まで受け取ります。余りは買取窓口や保管庫へ。'],
-     ['つなぐ','「パイプ」を選び、出す側 → 受ける側の順にタップします。無料です。'],
-     ['動かす','「移動」で施設をタップし、移動先をタップします。'],
-     ['調べる','「選択」で施設やパイプをタップすると、ここに詳細が出ます。'],
-     ['詰まったら','出力が詰まった施設には赤い点が付きます。パイプを増やすか、パイプを選んで強化します（「設備」で開発すると強化できる段階が増えます）。']]
-     .forEach(r=>box.append(h('p',{class:'hint'},h('b',{text:r[0]+'　'}),r[1])));
   }
 }
 function updInsp(){
@@ -1583,8 +1595,10 @@ function updUp(){
     if(k==='store') eff='いまの保管庫の上限 '+fmt(C.whCap())+'（品目ごと）';
     if(k==='slots') eff='いまの枠 '+(3+lv);
     if(k==='land') eff='いまの盤面 横 '+C.worldW()+' × 縦 '+C.worldH();
+    if(k==='amp') eff='共鳴由来の報酬 ×'+fr(C.ampF());
+    if(k==='apr') { const p=C.aprParts(C.UNIT*5); eff=lv>0?'いまの報酬 ×'+fr(C.aprF(C.UNIT*5))+'（種類 '+p.kinds+'/'+p.nk+'・稼働 '+Math.round(p.run*100)+'%・パイプ5m換算）':'未習得'; }
     if(k==='det') eff='異常の発生間隔 約'+Math.round(300/C.anomF())+'秒に1回';
-    const hid=(k==='det'||k==='res')&&s.chapter<3; const row=u.btn.closest('.rowc'); if(row) row.hidden=hid;
+    const hid=((k==='det'||k==='apr'||k==='res')&&s.chapter<3)||(k==='amp'&&!C.resOn()); const row=u.btn.closest('.rowc'); if(row) row.hidden=hid;
     if(k==='res'){
       const on=lv>=1||s.chapter>=6; setT(u.lv,on?'観測できます':'未開放');
       if(on){ setT(u.btn,lv>=1?'購入済み':'解放済み'); u.btn.disabled=true; } else { const c=C.upCost(k); setT(u.btn,fmt(c)+' 研究費'); u.btn.disabled=s.coins<c; }
@@ -1742,7 +1756,7 @@ C.on=function(type,d){
   } else if(type==='built'){
     toast('図鑑に載った　'+C.nameOf(d.t));
   } else if(type==='caught'){
-    toast('異常試料を捕まえた　+'+fmt(d.c)+' 研究費');
+    toast('異常試料を捕まえた　+'+fmt(d.c)+' 研究費'+(d.m>1.005?'　鑑定 ×'+fr(d.m):''));
   } else if(type==='anomFirst'){
     toast('パイプを、光る粒が流れている。流れ切る前にタップして捕まえよう');
   } else if(type==='res'){
