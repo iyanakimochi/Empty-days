@@ -547,9 +547,8 @@ const UP={
  store:{n:'保管庫の拡張',d:'保管庫の品目ごとの上限 ×1.7。大きなテーマの必要数にも対応できます',max:14,c:l=>60*Math.pow(2.4,l)},
  slots:{n:'論文執筆の枠',d:'同時に抱える題材 +1',max:3,c:l=>500*Math.pow(4,l)},
  det:{n:'異常検出の感度',d:'パイプを流れる試料に、異常な一粒が混ざる確率を上げます',max:12,c:l=>200*Math.pow(2.2,l)},
- apr:{n:'異常試料の鑑定',d:'異常試料の報酬が、研究室のようすで増えます。これまでに鑑定した品の種類、稼働中の施設の割合、流れてきたパイプの長さ。強化するほど、これらが強く効きます',max:12,c:l=>250*Math.pow(2.1,l)},
- amp:{n:'共鳴の増幅',d:'共鳴した施設から出た異常試料の報酬を増やします',max:10,c:l=>600*Math.pow(2.2,l)},
- res:{n:'共鳴の観測',d:'ときどき生産施設や保管庫が共鳴し、異常試料を格段に出しやすくなります。タップすると、つながる先にも広がります。第6章の完了でも解放されます',max:1,c:l=>1200},
+ apr:{n:'異常試料の鑑定',d:'異常試料の報酬が、研究室のようすで増えます。これまでに鑑定した品の種類、稼働中の施設の割合、流れてきたパイプの長さ。共鳴した施設から出た試料は、さらに高く鑑定されます。強化するほど、これらが強く効きます',max:12,c:l=>250*Math.pow(2.1,l)},
+ res:{n:'共鳴の観測',d:'ときどきどれかの施設が共鳴し、異常試料を格段に出しやすくなります。共鳴は、つながる先へひとりでに広がります。タップすると、持続が延びて、すぐ広がります。第6章の完了でも解放されます',max:1,c:l=>1200},
  land:{n:'研究室の拡張',d:'盤面が横に80、縦に80広がります',max:10,c:l=>120*Math.pow(2.1,l)}
 };
 const AUTO={deliver:{n:'自動選定',d:'最も早く終わりそうなテーマを、自動で選びます。',cost:600}};
@@ -578,7 +577,7 @@ function newB(t,x,y,lvl){ const b={id:S.nid++,t,x,y,lvl:lvl||1,out:0,inb:{},stoc
 function freshState(pp){
   pp=pp||{};
   return {v:3,saved:Date.now(),coins:pp.seed?Math.floor(300*Math.pow(2,pp.seed)):0,runEarned:0,lifeEarned:0,nid:1,lid:1,b:[],links:[],
-    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,apr:0,amp:0,res:0},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
+    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,apr:0,res:0},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
     pp:{prod:0,pipe:0,reward:0,deep:0,seed:0,keep:0},far:[0,0,0,0,0,0,0],star:0,ended:0,intro:0,
     stats:{delivered:0,tides:0,time:0,sold:0,caught:0},seen:{},resT:null,seenRes:0,anSeen:{},timers:{a:0},tk:0};
 }
@@ -640,7 +639,7 @@ function aprParts(len){
   let tot=0, run=0; for(const b of S.b){ const k=kindOf(b.t); if(k==='prod'||k==='proc'){ tot++; if(b.st==='run') run++; } }
   return {kinds, nk, a:kinds/nk, run:tot? run/tot : 0, tot, r:Math.min(1,(len||0)/(UNIT*6))};
 }
-function ampF(){ return 1+0.4*(S.up.amp||0); }
+function ampF(){ return 1+0.25*(S.up.apr||0); }
 function aprF(len){ const l=S.up.apr||0; if(l<=0) return 1; const p=aprParts(len); return 1+0.3*l*(p.a+p.run+p.r); }
 /* 品の鑑定価値: 原料は売値、加工品は材料の価値の合計×1.5（深い品ほど異常試料は高価） */
 const WORTH={};
@@ -664,7 +663,7 @@ function capture(pk){
 function tapResonance(id){
   const b=byId(id); if(!b||!(b.res>0)||b.resTap) return false;
   b.resTap=1; b.res=Math.max(b.res,25);
-  S.links.filter(l=>l.a===b.id).forEach(l=>{ const d=byId(l.b); if(!d) return; const k=kindOf(d.t); if((k==='prod'||k==='proc'||k==='wh')&&!(d.res>0)){ d.res=20; d.resTap=0; d.resN=0; } });
+  S.links.filter(l=>l.a===b.id).forEach(l=>{ const d=byId(l.b); if(!d) return; if(!(d.res>0)){ d.res=20; d.resTap=0; d.resN=0; } });
   emit('resTap',{id});
   return true;
 }
@@ -1008,9 +1007,11 @@ function step(dt){
   }
   for(const b of S.b){ if(b.res>0){ b.res-=dt; if(b.res<=0){ b.res=0; b.resTap=0; b.resN=0; } } }
   if(resOn()){
+    /* 共鳴は、タップしなくても、つながる先へひとりでに広がる（1秒あたり約5%） */
+    for(const L of S.links){ const a=M.get(L.a); if(a&&a.res>0&&Math.random()<dt*0.05){ const d=M.get(L.b); if(d&&!(d.res>0)){ d.res=20; d.resTap=0; d.resN=0; } } }
     S.resT=(S.resT==null?45:S.resT)-dt;
     if(S.resT<=0){
-      const c=S.b.filter(b=>{ const k=kindOf(b.t); return (k==='prod'||k==='proc'||k==='wh')&&!(b.res>0); });
+      const c=S.b.filter(b=>!(b.res>0));
       if(c.length){ const b=c[Math.floor(Math.random()*c.length)]; b.res=25; b.resTap=0; b.resN=0; if(S.seenRes<3){ S.seenRes++; emit('res',{id:b.id,t:b.t}); } }
       S.resT=120+Math.random()*120;
     }
@@ -1042,6 +1043,7 @@ function load(json){
     if(!Array.isArray(f.b)) return false;
     if(!o.built){ f.built={}; (f.b||[]).forEach(b=>{ f.built[b.t]=1; }); }
     if(!o.got){ f.got={}; IDS.forEach(i=>{ if(unlocked(i)) f.got[i]=1; }); }
+    if(f.up&&f.up.amp){ f.up.apr=Math.min(12,(f.up.apr||0)+f.up.amp); } if(f.up) delete f.up.amp;
     f.bw=0; f.bh=0; f.b.forEach(b=>{ f.bw=Math.max(f.bw,b.x+HALF+8); f.bh=Math.max(f.bh,b.y+HALF+8); });
     f.links.forEach(l=>{ if(l.lv==null) l.lv=Math.min(f.up.pipe,12); });
     S=f; return true;
@@ -1595,10 +1597,9 @@ function updUp(){
     if(k==='store') eff='いまの保管庫の上限 '+fmt(C.whCap())+'（品目ごと）';
     if(k==='slots') eff='いまの枠 '+(3+lv);
     if(k==='land') eff='いまの盤面 横 '+C.worldW()+' × 縦 '+C.worldH();
-    if(k==='amp') eff='共鳴由来の報酬 ×'+fr(C.ampF());
-    if(k==='apr') { const p=C.aprParts(C.UNIT*5); eff=lv>0?'いまの報酬 ×'+fr(C.aprF(C.UNIT*5))+'（種類 '+p.kinds+'/'+p.nk+'・稼働 '+Math.round(p.run*100)+'%・パイプ5m換算）':'未習得'; }
+    if(k==='apr') { const p=C.aprParts(C.UNIT*5); eff=lv>0?'いまの報酬 ×'+fr(C.aprF(C.UNIT*5))+'（種類 '+p.kinds+'/'+p.nk+'・稼働 '+Math.round(p.run*100)+'%・パイプ5m換算）'+(C.resOn()?'　共鳴由来 ×'+fr(C.ampF()):''):'未習得'; }
     if(k==='det') eff='異常の発生間隔 約'+Math.round(300/C.anomF())+'秒に1回';
-    const hid=((k==='det'||k==='apr'||k==='res')&&s.chapter<3)||(k==='amp'&&!C.resOn()); const row=u.btn.closest('.rowc'); if(row) row.hidden=hid;
+    const hid=((k==='det'||k==='apr'||k==='res')&&s.chapter<3); const row=u.btn.closest('.rowc'); if(row) row.hidden=hid;
     if(k==='res'){
       const on=lv>=1||s.chapter>=6; setT(u.lv,on?'観測できます':'未開放');
       if(on){ setT(u.btn,lv>=1?'購入済み':'解放済み'); u.btn.disabled=true; } else { const c=C.upCost(k); setT(u.btn,fmt(c)+' 研究費'); u.btn.disabled=s.coins<c; }
