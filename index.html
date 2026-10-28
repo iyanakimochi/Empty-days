@@ -7,7 +7,9 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="空白の六時間">
 <meta property="og:description" content="失われた六時間の記憶を取り戻すため、あの夜の実験を再構築する。原料を採り、加工し、パイプでつなぎ、実験台へ送る放置型の工場ゲーム。">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="og.png">
 <meta name="theme-color" content="#DDE5E8">
 <title>空白の六時間</title>
 
@@ -196,8 +198,14 @@ h3.grp{font-size:.78rem;letter-spacing:.16em;color:var(--mute);margin:22px 0 8px
 .ustat{display:grid;gap:6px}
 .ustat .dl-r{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 14px;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:8px 12px;font-size:.88rem}
 .ustat .dl-r b{font-weight:600;font-variant-numeric:tabular-nums}
+.savebox{width:100%;box-sizing:border-box;font:.78rem/1.4 monospace;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:8px;resize:vertical;word-break:break-all}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.howto{display:grid;gap:8px;font-size:.9rem;line-height:1.7}
+.howto b{color:var(--lamp);margin-right:.5em}
 .shelf{display:flex;flex-wrap:wrap;gap:8px}
-.tile{position:relative;width:56px;height:56px;display:grid;place-items:center;padding:0 0 10px;border:1px solid var(--line);border-top:4px solid var(--tc,var(--ink));background:var(--panel);color:var(--tc,var(--ink));border-radius:3px;font-family:var(--f-disp);font-size:1.2rem;cursor:pointer;opacity:.62}
+.tile{position:relative;width:62px;height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0 2px 12px;border:1px solid var(--line);border-top:4px solid var(--tc,var(--ink));background:var(--panel);color:var(--tc,var(--ink));border-radius:3px;font-family:var(--f-disp);cursor:pointer;opacity:.62}
+.tile .tg{font-size:1.15rem;line-height:1.1}
+.tile em{font:600 .56rem/1.1 sans-serif;font-style:normal;color:var(--mute);max-width:100%;overflow:hidden;white-space:nowrap}
 .tile small{position:absolute;bottom:2px;left:0;right:0;text-align:center;font:600 .6rem/1 sans-serif;color:var(--mute);font-variant-numeric:tabular-nums}
 .tile.can{opacity:1;box-shadow:0 0 0 2px var(--lampfill)}
 .tile[aria-pressed="true"]{outline:2px solid var(--sea);outline-offset:1px}
@@ -359,6 +367,17 @@ h3.grp{font-size:.78rem;letter-spacing:.16em;color:var(--mute);margin:22px 0 8px
       </section>
 
       <section class="pane" id="p-log">
+        <details class="fold">
+          <summary><span class="fold-t">遊び方のおさらい</span></summary>
+          <div class="howto">
+            <p><b>建てる</b>　「建築」を選び、分類から施設を選んで、盤面をタップします。</p>
+            <p><b>つなぐ</b>　「パイプ」を選び、出す側 → 受ける側の順にタップします。</p>
+            <p><b>実験する</b>　「研究」タブでテーマを選ぶと、実験台がその品だけを受け取り、そろうと自動で進みます。</p>
+            <p><b>稼ぐ</b>　余った品は「買取窓口」へ。論文執筆のテーマでも研究費が入ります。</p>
+            <p><b>強化する</b>　施設やパイプを選んで強化します。「設備」の棚には、条件を満たすと新しい設備が現れます。</p>
+            <p><b>光る粒</b>　パイプを流れる光る粒をタップすると、研究費になります。</p>
+          </div>
+        </details>
         <details class="fold" open>
           <summary><span class="fold-t" id="logH">日誌</span></summary>
           <div class="logs" id="logCh"></div>
@@ -377,7 +396,7 @@ h3.grp{font-size:.78rem;letter-spacing:.16em;color:var(--mute);margin:22px 0 8px
         </details>
         <h3 class="grp">記録</h3>
         <div class="stats-dl" id="statsDl"></div>
-        <p style="margin-top:22px"><button class="btn sm danger" id="resetBtn" type="button">データを消して最初から</button></p>
+        <p style="margin-top:22px;display:flex;flex-wrap:wrap;gap:8px"><button class="btn sm" id="expBtn" type="button">セーブを書き出す</button><button class="btn sm" id="impBtn" type="button">セーブを読み込む</button><button class="btn sm danger" id="resetBtn" type="button">データを消して最初から</button></p>
       </section>
 
       <section class="pane" id="p-voy">
@@ -559,6 +578,7 @@ const UP={
  slots:{n:'論文執筆の枠',d:'同時に抱える題材 +1',max:3,c:l=>500*Math.pow(4,l)},
  det:{n:'異常検出の感度',d:'パイプを流れる試料に、異常な一粒が混ざる確率を上げます',max:12,c:l=>200*Math.pow(2.2,l)},
  apr:{n:'異常試料の鑑定',d:'異常試料の報酬が、研究室のようすで増えます。これまでに鑑定した品の種類、稼働中の施設の割合、流れてきたパイプの長さ。共鳴した施設から出た試料は、さらに高く鑑定されます。強化するほど、これらが強く効きます',max:12,c:l=>250*Math.pow(2.1,l)},
+ obs:{n:'霧の観測',d:'',max:6,c:l=>3000*Math.pow(3,l)},
  res:{n:'共鳴の観測',d:'ときどきどれかの施設が共鳴し、異常試料を格段に出しやすくなります。共鳴は、つながる先へひとりでに広がります（広がるたびに弱まります）。タップすると、持続が延びて、すぐ広がります。第6章の完了でも解放されます',max:1,c:l=>1200},
  land:{n:'研究室の拡張',d:'盤面が横に80、縦に80広がります',max:10,c:l=>120*Math.pow(2.1,l)}
 };
@@ -588,7 +608,7 @@ function newB(t,x,y,lvl){ const b={id:S.nid++,t,x,y,lvl:lvl||1,out:0,inb:{},stoc
 function freshState(pp){
   pp=pp||{};
   return {v:3,saved:Date.now(),coins:pp.seed?Math.floor(300*Math.pow(2,pp.seed)):0,runEarned:0,lifeEarned:0,nid:1,lid:1,b:[],links:[],
-    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,apr:0,res:0},sup:{},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
+    up:{pipe:0,pspd:0,store:0,slots:0,land:0,det:0,apr:0,obs:0,res:0},sup:{},auto:{deliver:0,deliverOn:1},chapter:0,act:{},orders:[],orderTimer:4,oid:1,stories:{},got:{},built:{},pearls:0,pearlsTotal:0,
     pp:{prod:0,pipe:0,reward:0,deep:0,seed:0,keep:0},far:[0,0,0,0,0,0,0],star:0,ended:0,intro:0,
     stats:{delivered:0,tides:0,time:0,sold:0,caught:0},seen:{},resT:null,seenRes:0,anSeen:{},timers:{a:0},tk:0};
 }
@@ -650,6 +670,8 @@ function aprParts(len){
   let tot=0, run=0; for(const b of S.b){ const k=kindOf(b.t); if(k==='prod'||k==='proc'){ tot++; if(b.st==='run') run++; } }
   return {kinds, nk, a:kinds/nk, run:tot? run/tot : 0, tot, r:Math.min(1,(len||0)/(UNIT*6))};
 }
+function fogP(){ return S.ended? 0.05+0.02*(S.up.obs||0) : 0; }
+function fogM(){ return 3*(1+0.25*(S.up.obs||0)); }
 function ampF(){ return 1+0.25*(S.up.apr||0); }
 function aprF(len){ const l=S.up.apr||0; if(l<=0) return 1; const p=aprParts(len); return 1+0.3*l*(p.a+p.run+p.r); }
 /* 品の鑑定価値: 原料は売値、加工品は材料の価値の合計×1.5（深い品ほど異常試料は高価） */
@@ -660,14 +682,14 @@ function resOn(){ return S.chapter>=6 || S.up.res>0; }
 /* 流れる異常試料を捕まえる */
 function capture(pk){
   if(!pk||!pk.an) return 0;
-  pk.an=0;
+  pk.an=0; const wasFog=!!pk.fog; if(wasFog){ S.stats.fog=(S.stats.fog||0)+1; }
   let len=0; for(const L of S.links) if(L.q.indexOf(pk)>=0){ len=L.len; break; }
   S.anSeen=S.anSeen||{}; S.anSeen[pk.i]=1;
-  const cm=aprF(len)*(pk.rs? ampF() : 1);
+  const cm=aprF(len)*(pk.rs? ampF() : 1)*(0.4+0.6*Math.min(1,S.chapter/10))*(pk.fog? fogM() : 1);
   const c=Math.max(10,Math.round(worth(pk.i)*pk.q*3*cm*Math.pow(1.15,S.pp.reward)));
   gain(c); S.stats.caught=(S.stats.caught||0)+1;
   if(Math.random()<0.35){ collect(pickStory(pk.i)); }
-  emit('caught',{i:pk.i,c,m:cm});
+  emit('caught',{i:pk.i,c,m:cm,fog:wasFog});
   return c;
 }
 /* 共鳴した施設をタップ: 共鳴をのばし、つながる先の施設にも広げる */
@@ -903,6 +925,7 @@ const FAMN={
  land:['壁を抜く','隣室の借用','改築','地下二階へ','配管の再配置','倉庫の打ち抜き','屋根裏','別棟','地下通路','研究棟'],
  det:['感光フィルム','散乱計','暗室の増築','高感度CCD','偏光フィルタ','二重スリット','干渉計','光電子増倍管','ロックイン検出','量子効率の改善','ノイズ除去','全天監視'],
  apr:['鑑定ルーペ','標本ラベル','比較鑑定','分光分析','成分表','標本棚','鑑定士の手引き','精密天秤','電子顕微鏡','共同鑑定','鑑定書','標本の殿堂'],
+ obs:['霧の窓','霧の濾過器','霧の標本瓶','霧の記録帳','霧の羅針盤','霧の向こう'],
  res:['共鳴の観測']
 };
 const FAMI={
@@ -913,8 +936,10 @@ const FAMI={
  land:{g:'盤',d:'盤面が横に80、縦に80広がる',fl:'壁の向こうにも、誰かの実験の跡があった。'},
  det:{g:'感',d:'異常試料の出やすさ +80%',fl:'見えないものは、見る道具を増やせば見える。'},
  apr:{g:'鑑',d:'鑑定の効きが強まる（報酬の倍率と共鳴由来の倍率が上がる）',fl:'違いの分かる目は、集めた数だけ育つ。'},
+ obs:{g:'霧',d:'異常試料に混ざる「霧の試料」が増え、その報酬も増える',fl:'霧の向こうの観測者も、同じものを見ている。'},
  res:{g:'共',d:'ときどきどれかの施設が共鳴し、異常試料を格段に出しやすくなる。共鳴は、つながる先へひとりでに広がる（広がるたびに弱まる）',fl:'装置が、装置同士で、何かを話している。'}
 };
+const FAML={obs:'霧の観測',pipe:'パイプ',pspd:'流速',store:'保管庫',slots:'論文枠',land:'研究室',det:'検出',apr:'鑑定',res:'共鳴'};
 const caught=()=>(S.stats&&S.stats.caught)||0;
 const FAMNEED={
  pipe:t=>S.links.length>=2+t,
@@ -924,6 +949,7 @@ const FAMNEED={
  land:t=>S.b.length>=4+2*t,
  det:t=>S.chapter>=3&&caught()>=2*t,
  apr:t=>S.chapter>=3&&caught()>=1+2*t,
+ obs:t=>!!S.ended&&litCount()>=t+1,
  res:t=>S.chapter>=3&&S.chapter<6&&caught()>=5
 };
 const FAMNEEDTXT={
@@ -937,12 +963,12 @@ function shelf(){
   for(const k in FAMN){
     const t=S.up[k]||0; if(t>=UP[k].max||t>=FAMN[k].length) continue;
     if(!FAMNEED[k](t)) continue;
-    out.push({id:k+':'+t,fam:k,tier:t,n:FAMN[k][t],d:FAMI[k].d,fl:FAMI[k].fl,g:FAMI[k].g,cost:Math.floor(UP[k].c(t)),cur:t,max:UP[k].max});
+    out.push({id:k+':'+t,fam:k,tier:t,n:FAMN[k][t],d:FAMI[k].d,fl:FAMI[k].fl,g:FAMI[k].g,lb:FAML[k],cost:Math.floor(UP[k].c(t)),cur:t,max:UP[k].max});
   }
   for(const ty in NODE){
     if(!unlocked(ty)) continue;
     const t=(S.sup&&S.sup[ty])||0; if(t>=3||countOf(ty)<SPN[t]) continue;
-    out.push({id:'sp:'+ty+':'+t,sp:ty,tier:t,n:NODE[ty].b+'の改良 '+SPR[t],d:nameOf(ty)+'の産出 ×1.5',fl:'同じ施設を増やすほど、やり方が洗練されていく。',g:ITEMS[ty].g,tc:ITEMS[ty].t,cost:Math.floor(NODE[ty].c*SPC[t]),cur:t,max:3});
+    out.push({id:'sp:'+ty+':'+t,sp:ty,tier:t,n:NODE[ty].b+'の改良 '+SPR[t],d:nameOf(ty)+'の産出 ×1.5',fl:'同じ施設を増やすほど、やり方が洗練されていく。',g:ITEMS[ty].g,lb:NODE[ty].b.slice(0,4),tc:ITEMS[ty].t,cost:Math.floor(NODE[ty].c*SPC[t]),cur:t,max:3});
   }
   return out.sort((a,b)=>a.cost-b.cost);
 }
@@ -1062,7 +1088,7 @@ function step(dt){
         const isAn= src.res>0 && (src.resN||0)<5 && Math.random()<0.3;
         if(isAn) src.resN=(src.resN||0)+1;
         const last=L.q[L.q.length-1];
-        if(!isAn&&last&&last.i===pick&&last.t>T-0.4&&!last.an) last.q+=1; else L.q.push(isAn? {i:pick,q:1,t:T,an:1,rs:1} : {i:pick,q:1,t:T});
+        if(!isAn&&last&&last.i===pick&&last.t>T-0.4&&!last.an) last.q+=1; else L.q.push(isAn? {i:pick,q:1,t:T,an:1,rs:1,fog:(Math.random()<fogP()?1:0)} : {i:pick,q:1,t:T});
       }
       L.rr=rr; L.cr=Math.min(rc-sent,1);
     }
@@ -1072,7 +1098,7 @@ function step(dt){
     let nAn=0; const cand=[];
     for(const L of S.links) for(const pk of L.q){ if(pk.an) nAn++; else if(pk.t>0.8&&M.get(L.b)) cand.push(pk); }
     if(nAn<3&&cand.length&&Math.random()<dt/ANOM_SEC*anomF()){
-      cand[Math.floor(Math.random()*cand.length)].an=1;
+      const cp=cand[Math.floor(Math.random()*cand.length)]; cp.an=1; if(Math.random()<fogP()) cp.fog=1;
       if(!S.seen.an){ S.seen.an=1; emit('anomFirst'); }
     }
   }
@@ -1123,7 +1149,7 @@ function load(json){
 function reset(){ S=freshState(); }
 reset();
 Object.assign(api,{IDS,ITEMS,REC,NODE,SP,TYPES,CH,INTRO,ENDING,POOL,LORE,FLORE,FAR,STAR,UP,AUTO,PEARL,FAMN,FAMI,FAMNEEDTXT,shelf,upAvail,buyShelf,
-  state:()=>S,kindOf,nameOf,glyphOf,tierOf,worldW:W,worldH:H,UNIT,HALF,byId,buildingAt,fits,moveB,reqNow:reqFresh,litCount,mult,pipeCap,cycleOf,anomF,resOn,capture,tapResonance,aprF,aprParts,ampF,linkCap,linkUpCost,upgradeLink,upgradeAllLinks,linksUpInfo,pipeSpeed,depotCap,whCap,dockCount,bufCap,msMult,rate,needFlow,nodeCost,
+  state:()=>S,kindOf,nameOf,glyphOf,tierOf,worldW:W,worldH:H,UNIT,HALF,byId,buildingAt,fits,moveB,reqNow:reqFresh,litCount,mult,pipeCap,cycleOf,anomF,resOn,capture,tapResonance,aprF,aprParts,ampF,fogP,fogM,linkCap,linkUpCost,upgradeLink,upgradeAllLinks,linksUpInfo,pipeSpeed,depotCap,whCap,dockCount,bufCap,msMult,rate,needFlow,nodeCost,
   unlocked,countOf,placeCost,place,demolish,link,linkErr,removeLink,buyNode,accept,have,canDeliver,status,hint,
   deliverSide,skipOrder,deliverChapter,deliverFar,deliverStar,toggleAct,CATS,upCost,buyUp,buyAuto,
   pearlGain,canTide,pearlCost,buyPearl,tide,advance,step,serialize,load,reset,storyOf});
@@ -1335,10 +1361,10 @@ function draw(){
       let p=1-Math.max(0,pk.t-(pk.an?extra*0.35:extra))/T; p=Math.min(1,Math.max(0,p));
       const x=q[0]+(q[2]-q[0])*p, y=q[1]+(q[3]-q[1])*p;
       if(pk.an){
-        const pu=0.5+0.5*Math.sin(performance.now()/160);
-        g.beginPath(); g.arc(x,y,10+3*pu,0,6.2832); g.strokeStyle=c.lf; g.lineWidth=2; g.globalAlpha=0.5+0.5*pu; g.stroke(); g.globalAlpha=1;
-        g.fillStyle=c.lf; g.strokeStyle=c.ink; g.lineWidth=1.5;
-        g.beginPath(); g.arc(x,y,5.5,0,6.2832); g.fill(); g.stroke();
+        const pu=0.5+0.5*Math.sin(performance.now()/160), zs=Math.max(1,Math.min(2.2,0.8/ui.zoom));
+        g.beginPath(); g.arc(x,y,(10+3*pu)*zs,0,6.2832); g.strokeStyle=pk.fog?c.sea:c.lf; g.lineWidth=2*zs; g.globalAlpha=0.5+0.5*pu; g.stroke(); g.globalAlpha=1;
+        g.fillStyle=pk.fog?c.sea:c.lf; g.strokeStyle=c.ink; g.lineWidth=1.5;
+        g.beginPath(); g.arc(x,y,(pk.fog?7.5:5.5)*zs,0,6.2832); g.fill(); g.stroke();
         return;
       }
       g.fillStyle=tierCol(pk.i,c); g.strokeStyle=c.panel; g.lineWidth=1.5;
@@ -1674,6 +1700,7 @@ function upStatLines(s){
   if(s.up.land) row('研究室の拡張',s.up.land+' / '+C.UP.land.max+'　盤面 '+C.worldW()+'×'+C.worldH());
   if(s.up.det) row('異常検出の感度',s.up.det+' / '+C.UP.det.max+'　約'+Math.round(300/C.anomF())+'秒に1回');
   if(s.up.apr){ const p=C.aprParts(C.UNIT*5); row('異常試料の鑑定',s.up.apr+' / '+C.UP.apr.max+'　報酬 ×'+fr(C.aprF(C.UNIT*5))+'（種類 '+p.kinds+'/'+p.nk+'・稼働 '+Math.round(p.run*100)+'%・パイプ5m換算）'+(C.resOn()?'　共鳴由来 ×'+fr(C.ampF()):'')); }
+  if(s.up.obs) row('霧の観測',s.up.obs+' / '+C.UP.obs.max+'　霧の試料 '+Math.round(C.fogP()*100)+'%・報酬 ×'+fr(C.fogM()));
   if(s.up.res||s.chapter>=6) row('共鳴の観測','観測中');
   const sp=s.sup||{}; Object.keys(sp).forEach(t=>{ if(sp[t]>0) row(C.nameOf(t)+'の改良',sp[t]+' / 3　産出 ×'+fr(Math.pow(1.5,sp[t]))); });
   return L;
@@ -1686,7 +1713,7 @@ function updUp(){
     upSig=sig; UU.shelf.replaceChildren();
     items.forEach(x=>{
       const can=s.coins>=x.cost;
-      UU.shelf.append(h('button',{class:'tile '+(x.tc!=null?'t'+x.tc:'tn')+(can?' can':''),type:'button','aria-pressed':String(selUp===x.id),title:x.n,onclick:()=>{ selUp=(selUp===x.id?null:x.id); upSig=''; updUp(); }},h('span',{text:x.g}),h('small',{text:fmt(x.cost)})));
+      UU.shelf.append(h('button',{class:'tile '+(x.tc!=null?'t'+x.tc:'tn')+(can?' can':''),type:'button','aria-pressed':String(selUp===x.id),title:x.n,onclick:()=>{ selUp=(selUp===x.id?null:x.id); upSig=''; updUp(); }},h('span',{class:'tg',text:x.g}),h('em',{text:x.lb}),h('small',{text:fmt(x.cost)})));
     });
     UU.empty.hidden=items.length>0;
     UU.shelf.hidden=!items.length; UU.leg.hidden=!items.length;
@@ -1849,7 +1876,7 @@ C.on=function(type,d){
   } else if(type==='built'){
     toast('図鑑に載った　'+C.nameOf(d.t));
   } else if(type==='caught'){
-    toast('異常試料を捕まえた　+'+fmt(d.c)+' 研究費');
+    toast((d.fog?'霧の試料を捕まえた　+':'異常試料を捕まえた　+')+fmt(d.c)+' 研究費');
   } else if(type==='anomFirst'){
     toast('パイプを、光る粒が流れている。流れ切る前にタップして捕まえよう');
   } else if(type==='res'){
@@ -1878,11 +1905,37 @@ function setTab(t){
 
 /* 保存と起動 */
 function save(){ try{ localStorage.setItem(KEY,C.serialize()); }catch(e){} }
+/* セーブの書き出し／読み込み（テキストをコピー・貼り付け） */
+function enc(str){ return 'KHT3:'+btoa(unescape(encodeURIComponent(str))); }
+function dec(txt){ txt=(txt||'').trim(); if(txt.indexOf('KHT3:')===0) txt=txt.slice(5); try{ return decodeURIComponent(escape(atob(txt))); }catch(e){ return txt; } }
+function textDlg(o){
+  const w=$('modal'); if(!w.hidden) return;
+  const close=()=>{ w.hidden=true; w.textContent=''; };
+  const ta=h('textarea',{class:'savebox',rows:'6',spellcheck:'false','aria-label':o.title}); if(o.text!=null) ta.value=o.text; if(o.ro) ta.readOnly=true;
+  const msg=h('p',{class:'hint',text:o.note||''});
+  const row=h('div',{class:'btnrow'});
+  const main=h('button',{class:'btn pri',type:'button',text:o.btn,onclick:()=>o.go(ta,msg,close)});
+  row.append(main,h('button',{class:'btn',type:'button',text:'閉じる',onclick:close}));
+  w.hidden=false; w.textContent='';
+  w.append(h('div',{class:'dlg',role:'dialog','aria-modal':'true'},h('h2',{text:o.title}),msg,ta,row));
+  if(o.ro){ ta.focus(); ta.select(); } else ta.focus();
+}
+function exportDlg(){
+  save();
+  textDlg({title:'セーブを書き出す',text:enc(C.serialize()),ro:1,btn:'コピーする',note:'この文字列を、メモなどに保存してください。「セーブを読み込む」に貼り付けると、続きから遊べます。',
+    go:(ta,msg)=>{ ta.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} if(!ok&&navigator.clipboard){ navigator.clipboard.writeText(ta.value).then(()=>setT(msg,'コピーしました'),()=>setT(msg,'選択された文字列を、手動でコピーしてください')); return; } setT(msg,ok?'コピーしました':'選択された文字列を、手動でコピーしてください'); }});
+}
+function importDlg(){
+  textDlg({title:'セーブを読み込む',text:'',btn:'読み込む',note:'書き出した文字列を貼り付けてください。いまの進行は、上書きされます。',
+    go:(ta,msg,close)=>{ const j=dec(ta.value); let ok=false; try{ const bak=C.serialize(); ok=C.load(j); if(!ok){ C.load(bak); } }catch(e){ ok=false; }
+      if(!ok){ setT(msg,'読み込めませんでした。文字列が欠けていないか、確認してください。'); return; }
+      save(); close(); toast('読み込みました'); setTimeout(()=>location.reload(),600); }});
+}
 function start(hot){
   let loaded=false, gap=0;
   try{
     if(hot&&hot.s) loaded=C.load(hot.s);
-    else { const raw=localStorage.getItem(KEY); if(raw) loaded=C.load(raw); }
+    else { const raw=localStorage.getItem(KEY); if(raw){ try{ localStorage.setItem(KEY+'-bak',raw); }catch(e){} loaded=C.load(raw); } }
   }catch(e){}
   ui.help=st().chapter===0; $('helpBtn').addEventListener('click',()=>{ ui.help=!ui.help; $('helpBtn').classList.remove('new'); render(); });
   $('facHint').addEventListener('click',()=>{ ui.help=false; render(); });
@@ -1893,6 +1946,7 @@ function start(hot){
   setTab('fac');
   $('delChk').addEventListener('change',e=>{ st().auto.deliverOn=e.target.checked?1:0; });
   $('saveBtn').addEventListener('click',()=>{ save(); toast('保存しました'); });
+  $('expBtn').addEventListener('click',exportDlg); $('impBtn').addEventListener('click',importDlg);
   let rc=false;
   $('resetBtn').addEventListener('click',()=>{
     if(!rc){ rc=true; setT($('resetBtn'),'本当に消す? もう一度押すと全データが消えます'); setTimeout(()=>{ rc=false; setT($('resetBtn'),'データを消して最初から'); },5000); return; }
